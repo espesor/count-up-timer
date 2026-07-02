@@ -451,6 +451,34 @@ function setStatus(text) {
 
 /* ---------- Core actions ---------- */
 
+let wakeLock = null;
+
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return; // unsupported browser — fail silently
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) {
+    // Common causes: low battery, user denied, or not allowed in this context — non-fatal.
+    console.warn('Wake Lock unavailable:', e);
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock) {
+    try { await wakeLock.release(); } catch (e) { /* already released */ }
+    wakeLock = null;
+  }
+}
+
+// The OS releases the wake lock automatically when the tab is hidden;
+// re-acquire it once the tab is visible again while still running.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state === 'ACTIVE' && !wakeLock) {
+    acquireWakeLock();
+  }
+});
+
 async function ensureAudioReady() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -474,6 +502,7 @@ async function handleStart() {
       pendulumEl.classList.add('running');
       setButtons({ start: false, pause: true, stop: true });
       setStatus('Get ready…');
+      acquireWakeLock();
       tick();
     } else if (state === 'PAUSED') {
       await audioContext.resume();
@@ -481,6 +510,7 @@ async function handleStart() {
       pendulumEl.classList.add('running');
       setButtons({ start: false, pause: true, stop: true });
       setStatus('Resumed.');
+      acquireWakeLock();
       tick();
     }
   } catch (err) {
@@ -496,6 +526,7 @@ async function handlePause() {
   state = 'PAUSED';
   pendulumEl.classList.remove('running');
   if (rafId) cancelAnimationFrame(rafId);
+  releaseWakeLock();
   setButtons({ start: true, pause: false, stop: true });
   setStatus('Paused.');
 }
@@ -505,6 +536,7 @@ async function resetToIdle(statusText) {
   state = 'STOPPING'; // flip immediately so tick()'s loop stops on its next check
   if (rafId) cancelAnimationFrame(rafId);
   rafId = null;
+  releaseWakeLock();
   try { piano && piano.stop && piano.stop(); } catch (e) { /* best-effort */ }
   if (audioContext) {
     try { await audioContext.close(); } catch (e) { /* already closed */ }

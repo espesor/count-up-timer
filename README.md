@@ -22,6 +22,10 @@ then visit `http://localhost:8000`.
 
 Piano samples are loaded on first Start click (via [`smplr`](https://github.com/danigb/smplr), CDN-hosted, no local assets needed) — an internet connection is required the first time.
 
+## Known limitation: mobile screen lock
+
+On iOS Safari (and most mobile browsers), the timer stops if the screen locks or you switch apps — this is a browser platform restriction, not something a web page can fully override. The app requests a Screen Wake Lock to keep the screen from auto-dimming while running, which covers the most common case, but manually locking the phone or switching apps will still suspend it. See the design doc's Edge Cases section for details.
+
 ## How it works
 
 - **Start** — begins the prep countdown (5→0), then counts up. If paused, resumes exactly where it left off.
