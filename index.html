@@ -454,7 +454,7 @@ function setStatus(text) {
 async function ensureAudioReady() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    piano = SplendidGrandPiano(audioContext);
+    piano = new SplendidGrandPiano(audioContext);
     setStatus('Loading piano samples…');
     await piano.load;
   }
