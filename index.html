@@ -281,7 +281,7 @@
 <script>
 (async () => {
 try {
-const { Piano } = await import('https://esm.sh/smplr@0.14.1');
+const { SplendidGrandPiano } = await import('https://esm.sh/smplr@0.14.1');
 
 /* ---------- Music theory helpers ---------- */
 
@@ -454,7 +454,7 @@ function setStatus(text) {
 async function ensureAudioReady() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    piano = new Piano(audioContext);
+    piano = new SplendidGrandPiano(audioContext);
     setStatus('Loading piano samples…');
     await piano.load;
   }
