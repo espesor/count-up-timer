@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Count-Up Timer — Piano Metronome</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --wood-dark: #1c140d;
+    --wood-mid: #2c1f15;
+    --wood-panel-a: #3c2a1c;
+    --wood-panel-b: #291c12;
+    --ivory: #f1e7d6;
+    --ivory-dim: #cbbca3;
+    --brass: #c9a24b;
+    --brass-bright: #e0bc6c;
+    --brass-dim: #7a6535;
+    --felt-green: #5b6b4f;
+    --felt-green-bright: #728362;
+    --brick: #8a3b34;
+    --brick-bright: #a94c43;
+    --line: rgba(241, 231, 214, 0.09);
+    --shadow: rgba(0, 0, 0, 0.55);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(201, 162, 75, 0.08), transparent 60%),
+      linear-gradient(180deg, var(--wood-dark), #140d08 85%);
+    color: var(--ivory);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .device {
+    width: 100%;
+    max-width: 420px;
+    background: linear-gradient(165deg, var(--wood-panel-a), var(--wood-panel-b));
+    border-radius: 18px;
+    padding: 36px 28px 30px;
+    box-shadow:
+      0 30px 60px var(--shadow),
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      inset 0 0 0 1px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .device::before {
+    /* subtle wood grain */
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    background-image: repeating-linear-gradient(
+      95deg,
+      #000 0px, #000 1px,
+      transparent 2px, transparent 7px
+    );
+    pointer-events: none;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--brass);
+    text-align: center;
+    margin: 0 0 22px;
+    font-weight: 500;
+  }
+
+  .stage {
+    position: relative;
+    height: 190px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.22);
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* staff lines, sheet-music reference, faint */
+  .staff {
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    right: 10%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 0;
+  }
+  .staff span {
+    height: 1px;
+    background: var(--line);
+    display: block;
+  }
+
+  .digits {
+    position: relative;
+    z-index: 1;
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    font-size: 92px;
+    line-height: 1;
+    color: var(--ivory);
+    text-shadow: 0 2px 18px rgba(0,0,0,0.5);
+    letter-spacing: 0.01em;
+    transition: color 0.3s ease;
+  }
+
+  .digits.prep { color: var(--brass-bright); }
+
+  .phase-label {
+    position: relative;
+    z-index: 1;
+    margin-top: 6px;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ivory-dim);
+    min-height: 16px;
+  }
+
+  /* pendulum, the signature element: a brass arm ticking each second */
+  .pendulum-track {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    width: 2px;
+    height: 34px;
+    transform-origin: bottom center;
+  }
+  .pendulum-arm {
+    position: absolute;
+    bottom: 0;
+    left: -1px;
+    width: 2px;
+    height: 34px;
+    background: linear-gradient(180deg, var(--brass), var(--brass-dim));
+    border-radius: 2px;
+    transform-origin: bottom center;
+    animation: swing 2s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .pendulum-arm::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brass-bright);
+  }
+  .pendulum-arm.running { animation-play-state: running; }
+
+  @keyframes swing {
+    0%   { transform: rotate(-18deg); }
+    50%  { transform: rotate(18deg); }
+    100% { transform: rotate(-18deg); }
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 26px;
+  }
+
+  button {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 14px 8px;
+    border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    transition: transform 0.08s ease, filter 0.15s ease, opacity 0.15s ease;
+    color: var(--wood-dark);
+  }
+
+  button:active:not(:disabled) { transform: translateY(1px); }
+
+  button:disabled {
+    opacity: 0.32;
+    cursor: not-allowed;
+    filter: grayscale(0.4);
+  }
+
+  #startBtn {
+    background: linear-gradient(180deg, var(--brass-bright), var(--brass));
+  }
+  #startBtn:hover:not(:disabled) { filter: brightness(1.08); }
+
+  #pauseBtn {
+    background: linear-gradient(180deg, var(--felt-green-bright), var(--felt-green));
+    color: var(--ivory);
+  }
+  #pauseBtn:hover:not(:disabled) { filter: brightness(1.1); }
+
+  #stopBtn {
+    background: linear-gradient(180deg, var(--brick-bright), var(--brick));
+    color: var(--ivory);
+  }
+  #stopBtn:hover:not(:disabled) { filter: brightness(1.1); }
+
+  button:focus-visible {
+    outline: 2px solid var(--brass-bright);
+    outline-offset: 2px;
+  }
+
+  .status {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ivory-dim);
+    letter-spacing: 0.04em;
+    min-height: 16px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pendulum-arm { animation: none !important; }
+    button { transition: none; }
+  }
+
+  @media (max-width: 440px) {
+    .digits { font-size: 74px; }
+    .stage { height: 160px; }
+  }
+</style>
+</head>
+<body>
+
+  <main class="device">
+    <p class="eyebrow">Count-Up Timer</p>
+
+    <div class="stage">
+      <div class="staff" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="digits" id="digits">00</div>
+      <div class="phase-label" id="phaseLabel">Ready</div>
+      <div class="pendulum-track">
+        <div class="pendulum-arm" id="pendulum"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn" type="button">Start</button>
+      <button id="pauseBtn" type="button" disabled>Pause</button>
+      <button id="stopBtn" type="button" disabled>Stop</button>
+    </div>
+
+    <p class="status" id="status" role="status" aria-live="polite">Press Start to begin.</p>
+  </main>
+
+<script type="module">
+import { Piano } from 'https://esm.sh/smplr@0.14.1';
+
+/* ---------- Music theory helpers ---------- */
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+function noteToMidi(note) {
+  const m = note.match(/^([A-G]#?)(\d)$/);
+  const idx = NOTE_NAMES.indexOf(m[1]);
+  return (parseInt(m[2], 10) + 1) * 12 + idx;
+}
+function midiToNote(midi) {
+  const idx = ((midi % 12) + 12) % 12;
+  const oct = Math.floor(midi / 12) - 1;
+  return NOTE_NAMES[idx] + oct;
+}
+function transpose(root, semitones) {
+  return midiToNote(noteToMidi(root) + semitones);
+}
+
+const SCALE_INTERVALS = {
+  major: [0, 2, 4, 5, 7, 9, 11, 12],
+  minor: [0, 2, 3, 5, 7, 8, 10, 12], // natural minor
+};
+
+// Six 20-second segments per the design doc's 120s master loop.
+const SEGMENTS = [
+  { root: 'C4', type: 'major', label: 'C major' },
+  { root: 'D4', type: 'major', label: 'D major' },
+  { root: 'E4', type: 'major', label: 'E major' },
+  { root: 'E4', type: 'minor', label: 'E minor' },
+  { root: 'D4', type: 'minor', label: 'D minor' },
+  { root: 'C4', type: 'minor', label: 'C minor' },
+];
+
+const scaleCache = new Map();
+function getScale(root, type) {
+  const key = root + type;
+  if (!scaleCache.has(key)) {
+    scaleCache.set(key, SCALE_INTERVALS[type].map((i) => transpose(root, i)));
+  }
+  return scaleCache.get(key);
+}
+
+/* ---------- Constants ---------- */
+
+const SCHEDULE_AHEAD = 0.15;     // seconds, look-ahead scheduling window
+const NOTE_DURATION = 0.9;       // seconds, single note
+const CHORD_DURATION = 1.4;      // seconds, held chords
+const AUTO_STOP_SECONDS = 600;   // 10 minutes of running count-up time
+
+/* ---------- App state ---------- */
+
+let audioContext = null;
+let piano = null;
+let state = 'IDLE'; // IDLE | ACTIVE | PAUSED
+let sessionStart = 0; // audioContext time when index 0 (prep "5") occurred
+let nextIndex = 0;    // next 1-second event index to schedule
+let rafId = null;
+
+const digitsEl = document.getElementById('digits');
+const phaseLabelEl = document.getElementById('phaseLabel');
+const pendulumEl = document.getElementById('pendulum');
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const stopBtn = document.getElementById('stopBtn');
+
+/* ---------- Audio playback ---------- */
+
+function playNote(note, time) {
+  piano.start({ note, time, duration: NOTE_DURATION });
+}
+function playChord(notes, time) {
+  notes.forEach((note) => piano.start({ note, time, duration: CHORD_DURATION }));
+}
+
+/* ---------- Event schedule: a uniform 1-second grid.
+   Index 0-5 = prep (5,4,3,2,1,0). Index 6+ = count-up seconds 1,2,3... ---------- */
+
+function playEvent(n, time) {
+  if (n <= 5) {
+    const prepNotes = ['C5', 'G4', 'E4', 'C4']; // indices 0-3 -> displayed 5,4,3,2
+    if (n < 4) {
+      playNote(prepNotes[n], time);
+    } else if (n === 4) {
+      playChord(['C4', 'E4', 'G4', 'C5'], time); // displayed "1"
+    }
+    // n === 5 (displayed "0") is a rest — no sound.
+    return;
+  }
+
+  const countUpSecond = n - 5;
+  if (countUpSecond > AUTO_STOP_SECONDS) {
+    autoStop();
+    return;
+  }
+
+  const idx0 = countUpSecond - 1;
+  const segIndex = Math.floor((idx0 % 120) / 20);
+  const offset = (idx0 % 20) + 1;
+  const seg = SEGMENTS[segIndex];
+  const scale = getScale(seg.root, seg.type);
+
+  if (offset <= 8) {
+    playNote(scale[offset - 1], time);
+  } else if (offset === 9) {
+    playChord([scale[2], scale[4], scale[7]], time); // first inversion
+  } else if (offset === 10) {
+    // rest
+  } else if (offset <= 18) {
+    playNote(scale[18 - offset], time);
+  } else if (offset === 19) {
+    playChord([scale[0], scale[2], scale[4]], time); // root position
+  }
+  // offset === 20 -> rest
+}
+
+function segmentLabelFor(countUpSecond) {
+  const idx0 = countUpSecond - 1;
+  const segIndex = Math.floor((idx0 % 120) / 20);
+  return SEGMENTS[segIndex].label;
+}
+
+/* ---------- Display + scheduling loop ---------- */
+
+function updateDisplay(now) {
+  const elapsed = Math.max(0, now - sessionStart);
+  const idx = Math.floor(elapsed);
+
+  if (idx <= 5) {
+    digitsEl.textContent = String(5 - idx);
+    digitsEl.classList.add('prep');
+    phaseLabelEl.textContent = 'Get ready';
+  } else {
+    const countUpSecond = idx - 5;
+    digitsEl.textContent = String(countUpSecond);
+    digitsEl.classList.remove('prep');
+    phaseLabelEl.textContent = segmentLabelFor(Math.min(countUpSecond, AUTO_STOP_SECONDS));
+  }
+}
+
+function tick() {
+  if (state !== 'ACTIVE') return;
+  const now = audioContext.currentTime;
+
+  while (sessionStart + nextIndex <= now + SCHEDULE_AHEAD) {
+    playEvent(nextIndex, sessionStart + nextIndex);
+    nextIndex += 1;
+    if (state !== 'ACTIVE') return; // autoStop() may have fired inside playEvent
+  }
+
+  updateDisplay(now);
+  rafId = requestAnimationFrame(tick);
+}
+
+/* ---------- Button state management ---------- */
+
+function setButtons({ start, pause, stop }) {
+  startBtn.disabled = !start;
+  pauseBtn.disabled = !pause;
+  stopBtn.disabled = !stop;
+}
+
+function setStatus(text) {
+  statusEl.textContent = text;
+}
+
+/* ---------- Core actions ---------- */
+
+async function ensureAudioReady() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    piano = new Piano(audioContext);
+    setStatus('Loading piano samples…');
+    await piano.load;
+  }
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+}
+
+async function handleStart() {
+  startBtn.disabled = true; // prevent double-clicks while loading
+  try {
+    if (state === 'IDLE') {
+      await ensureAudioReady();
+      sessionStart = audioContext.currentTime;
+      nextIndex = 0;
+      state = 'ACTIVE';
+      pendulumEl.classList.add('running');
+      setButtons({ start: false, pause: true, stop: true });
+      setStatus('Get ready…');
+      tick();
+    } else if (state === 'PAUSED') {
+      await audioContext.resume();
+      state = 'ACTIVE';
+      pendulumEl.classList.add('running');
+      setButtons({ start: false, pause: true, stop: true });
+      setStatus('Resumed.');
+      tick();
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus('Could not start audio — check your browser settings.');
+    setButtons({ start: true, pause: false, stop: false });
+  }
+}
+
+async function handlePause() {
+  if (state !== 'ACTIVE') return;
+  await audioContext.suspend();
+  state = 'PAUSED';
+  pendulumEl.classList.remove('running');
+  if (rafId) cancelAnimationFrame(rafId);
+  setButtons({ start: true, pause: false, stop: true });
+  setStatus('Paused.');
+}
+
+async function resetToIdle(statusText) {
+  if (state === 'IDLE' || state === 'STOPPING') return; // reentrancy guard
+  state = 'STOPPING'; // flip immediately so tick()'s loop stops on its next check
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  try { piano && piano.stop && piano.stop(); } catch (e) { /* best-effort */ }
+  if (audioContext) {
+    try { await audioContext.close(); } catch (e) { /* already closed */ }
+  }
+  audioContext = null;
+  piano = null;
+  sessionStart = 0;
+  nextIndex = 0;
+  state = 'IDLE';
+  pendulumEl.classList.remove('running');
+  digitsEl.textContent = '00';
+  digitsEl.classList.remove('prep');
+  phaseLabelEl.textContent = 'Ready';
+  setButtons({ start: true, pause: false, stop: false });
+  setStatus(statusText);
+}
+
+function handleStop() {
+  if (state !== 'ACTIVE' && state !== 'PAUSED') return;
+  resetToIdle('Stopped. Press Start to begin again.');
+}
+
+function autoStop() {
+  if (state !== 'ACTIVE') return;
+  resetToIdle('Stopped — 10 minute limit reached.');
+}
+
+/* ---------- Wire up buttons ---------- */
+
+startBtn.addEventListener('click', handleStart);
+pauseBtn.addEventListener('click', handlePause);
+stopBtn.addEventListener('click', handleStop);
+</script>
+</body>
+</html>
