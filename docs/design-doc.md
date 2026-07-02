@@ -61,14 +61,18 @@ COUNTING_UP --600s count-up elapsed, no stop--> auto-stop --> IDLE
 
 ## 5. Audio Design
 
-Notes are played via **piano sample playback** rather than oscillator synthesis. Recommended library: [`smplr`](https://github.com/danigb/smplr) (lightweight, no build-step friction) using its built-in `Piano` instrument (Salamander Grand Piano samples, CC-BY licensed, loaded from a CDN). Alternatives: `soundfont-player` or Tone.js `Sampler` with a soundfont — same integration shape.
+Notes are played via **piano sample playback** rather than oscillator synthesis. Recommended library: [`smplr`](https://github.com/danigb/smplr) (lightweight, no build-step friction) using its built-in `SplendidGrandPiano` instrument (Steinway samples, CC-BY licensed, loaded from a CDN). Alternatives: `soundfont-player` or Tone.js `Sampler` with a soundfont — same integration shape.
 
 ```js
-import { Piano } from 'smplr';
+import { SplendidGrandPiano } from 'smplr';
 
 const audioContext = new AudioContext();
-const piano = new Piano(audioContext);
-await piano.load; // resolves once samples are fetched/decoded
+const piano = new SplendidGrandPiano(audioContext, {
+  // Restrict to the ~16 pitches this piece actually uses (roughly C4-E5) instead
+  // of smplr's default full 88-key, multi-velocity set — a much smaller download.
+  notesToLoad: { notes: requiredMidiNotes, velocityRange: [1, 127] },
+});
+await piano.load; // resolves once the restricted sample set is fetched/decoded
 
 // Play a single note:
 piano.start({ note: 'C4', time: scheduledTime, duration: 0.9 });
@@ -78,12 +82,13 @@ piano.start({ note: 'C4', time: scheduledTime, duration: 0.9 });
 ```
 
 Key implementation points:
-- **Loading**: `piano.load` must resolve before the first Start click plays anything — show a brief "loading sound…" state if needed (usually well under a second on a normal connection).
-- **Creating the `AudioContext`**: still must happen inside a user-gesture handler (the Start button click) to satisfy browser autoplay policy — same as before.
+- **Loading vs. playback gesture**: fetching/decoding samples does *not* require a user gesture — only `audioContext.resume()`/starting playback does. So `AudioContext` creation and `piano.load` can (and should) start as soon as the page opens, not gated on the Start click; only the `resume()` call needs to happen inside the click handler. This means by the time someone taps Start, loading is often already finished.
+- **Restrict which notes load**: see §7 for why and how — this is the single biggest lever on load time, especially on mobile networks.
 - **Scheduling**: unchanged from §4 — the look-ahead scheduler still computes *when* each note/chord/rest happens from `audioContext.currentTime`; it now calls `piano.start({ note, time })` instead of building an `OscillatorNode` at that time.
 - **Chords**: `smplr` has no built-in multi-note "chord" call — a chord is just several `piano.start()` calls sharing the same `time`, one per note (see §5.1/§5.2 chord rows).
 - **Note duration**: pass `duration` a bit shorter than the 1-second slot (e.g. `0.9`s) so notes don't bleed into the next second; chords held at the ends of phrases (§5.1 second 0, §5.2 offsets 9/19) can ring slightly longer (e.g. `1.2–1.5`s) since nothing else plays underneath them.
-- **Asset size/dependency tradeoff**: this replaces the "zero external assets" property from the oscillator approach — the app now fetches piano sample files (a few MB, cached by the browser after first load) from smplr's CDN, or these can be self-hosted if offline use is required.
+- **Asset size/dependency tradeoff**: this replaces the "zero external assets" property from the oscillator approach — the app now fetches piano sample files from smplr's CDN (a small download once restricted to the notes actually used, cached by the browser after first load), or these can be self-hosted if offline use is required.
+
 
 ### 5.1 Prep Countdown (seconds 5 → 0)
 
@@ -180,9 +185,11 @@ Given `countUpSecond`, derive: which of the 6 segments (via `% 120`), which half
 - **Resuming mid-chord/mid-rest**: since audio is derived purely from elapsed time, resuming after pause naturally lands back on the correct note/chord/rest — no special-casing needed.
 - **Rapid Start/Stop/Pause clicks**: debounce or disable buttons per the state table in §2 to prevent overlapping schedulers.
 - **Tab backgrounding**: browsers throttle `setInterval`/`requestAnimationFrame` in background tabs; since the audio clock (`AudioContext.currentTime`) keeps running independently, the display should re-sync correctly when the tab regains focus.
-- **Audio autoplay policy**: browsers require a user gesture before audio can play; the Start button click satisfies this (create/resume the `AudioContext` inside the Start click handler).
+- **Audio autoplay policy**: browsers require a user gesture before audio can *play*; only `audioContext.resume()` needs to happen inside the Start click handler — sample loading itself does not (see the preload note below).
+- **Module load failures (e.g. opened via `file://`)**: browsers block ES module imports — which is how the piano library loads — on pages opened directly from disk rather than served over `http(s)://`. This fails silently by default. Wrap the import in a dynamic `import()` inside a `try/catch` (rather than a static top-level `import`) so a failure can surface a clear on-page message (e.g. "run a local server instead of double-clicking this file") instead of the buttons just doing nothing.
 - **Sample load time**: first Start click should wait on `piano.load` before scheduling notes; consider pre-loading the piano as soon as the page loads (not gated on user gesture — just don't call `piano.start()` until a gesture has occurred) so it's ready by the time Start is clicked.
   - **Restrict loaded notes**: by default `SplendidGrandPiano` loads the full 88-key range across multiple velocity layers, which is a slow download on mobile networks. Since the whole piece only ever touches ~16 distinct pitches (roughly C4–E5), pass `notesToLoad: { notes: [...], velocityRange: [1, 127] }` with exactly the MIDI numbers actually used (computed from the segment/scale tables, not hardcoded) — this cuts the download to a small fraction of the default.
+  - **Share one in-flight load**: if preload-on-page-open and a click-triggered load can both fire, track a single shared load promise so a Start click that lands mid-preload awaits the same load rather than kicking off a redundant/competing one.
   - **Preload on page load**: fetching/decoding audio doesn't require a user gesture (only playback does), so the piano can start loading as soon as the page opens rather than waiting for the Start click. A shared in-flight promise should be used so a Start click that arrives mid-preload awaits the same load rather than kicking off a redundant one.
 - **Mobile screen lock / backgrounding**: iOS Safari (and most mobile browsers) suspend JavaScript execution and audio for any tab that isn't the active, foreground tab — this includes the screen auto-locking from inactivity, the user manually locking it, or switching apps. This is a platform-level restriction with no full workaround from a plain web page. The app requests a **Screen Wake Lock** (`navigator.wakeLock`) while running, which prevents the screen from auto-dimming/locking from inactivity — covering the most common case. It does **not** prevent suspension if the user manually presses the lock button or switches apps; there is no web API that overrides that. A fully background-capable version would require packaging the app as a native app or PWA with background-audio entitlements (e.g. via Capacitor), which is a materially larger project than a static page.
 
@@ -192,4 +199,4 @@ Plain HTML/CSS/JS is sufficient — no framework or build step needed:
 - **HTML**: display + 3 buttons.
 - **CSS**: large monospace digit styling, simple button states.
 - **JS**: Web Audio API + `smplr` (piano sample playback) for audio, `requestAnimationFrame` for display updates, a small state machine per §3.
-- **Dependency**: `smplr` via CDN (e.g. `<script type="module">import { Piano } from 'https://esm.sh/smplr'</script>`) or npm if using a bundler — no other build tooling required.
+- **Dependency**: `smplr` via CDN (e.g. `import { SplendidGrandPiano } from 'https://esm.sh/smplr@0.16.4'` — pin a version, since unpinned `@latest` can shift under you) or npm if using a bundler — no other build tooling required.
