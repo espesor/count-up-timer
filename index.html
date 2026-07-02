@@ -278,8 +278,10 @@
     <p class="status" id="status" role="status" aria-live="polite">Press Start to begin.</p>
   </main>
 
-<script type="module">
-import { Piano } from 'https://esm.sh/smplr@0.14.1';
+<script>
+(async () => {
+try {
+const { Piano } = await import('https://esm.sh/smplr@0.14.1');
 
 /* ---------- Music theory helpers ---------- */
 
@@ -535,6 +537,16 @@ function autoStop() {
 startBtn.addEventListener('click', handleStart);
 pauseBtn.addEventListener('click', handlePause);
 stopBtn.addEventListener('click', handleStop);
+
+} catch (err) {
+  console.error('Failed to load audio engine:', err);
+  const status = document.getElementById('status');
+  const start = document.getElementById('startBtn');
+  status.textContent = 'Could not load the piano sounds. If you opened this file by double-clicking it, that\'s the cause — browsers block this from disk. Instead, run a local server (e.g. "python3 -m http.server" in this folder) and open it via http://localhost, or upload it to any static host.';
+  status.style.color = '#e0bc6c';
+  start.disabled = true;
+}
+})();
 </script>
 </body>
 </html>
