@@ -136,7 +136,7 @@ After second 120, the loop repeats from segment 1 (C major).
 | 19 | Root-position triad (lower 3 notes of the 4-note chord, e.g. C major: C4 E4 G4) |
 | 20 | Rest |
 
-This pattern (8 scale notes + 1 chord + 1 rest = 10 seconds, twice per segment) applies to every scale in the table above — major scales use the major-scale/major-triad pattern; the three minor segments (61–120) use the natural minor scale and its minor triad in the same up/inversion/rest, down/root-triad/rest shape.
+This pattern (8 scale notes + 1 chord + 1 rest = 10 seconds, twice per segment) applies to every scale in the table above — major scales use the major-scale/major-triad pattern; the three minor segments (61–120) use the **melodic minor scale, ascending form** (natural minor with a raised 6th and 7th degree) and its minor triad, in the same up/inversion/rest, down/root-triad/rest shape. Unlike the classical convention of lowering the 6th/7th back to natural minor when descending, this app reuses the same raised (ascending-form) scale for the descending half too — i.e. simply the ascending 8 notes in reverse, consistent with how the major segments already work.
 
 ### 5.3 Example note tables for reference
 
@@ -152,11 +152,13 @@ This pattern (8 scale notes + 1 chord + 1 rest = 10 seconds, twice per segment) 
 
 **E major segment (41–60):** scale E4 F#4 G#4 A4 B4 C#5 D#5 E5, tonic triad E-G#-B.
 
-**E minor segment (61–80):** natural minor scale E4 F#4 G4 A4 B4 C5 D5 E5, tonic triad E-G-B.
+**E minor segment (61–80):** melodic minor scale (ascending form) E4 F#4 G4 A4 B4 C#5 D#5 E5, tonic triad E-G-B.
 
-**D minor segment (81–100):** scale D4 E4 F4 G4 A4 Bb4 C5 D5, tonic triad D-F-A.
+**D minor segment (81–100):** melodic minor scale D4 E4 F4 G4 A4 B4 C#5 D5, tonic triad D-F-A.
 
-**C minor segment (101–120):** scale C4 D4 Eb4 F4 G4 Ab4 Bb4 C5, tonic triad C-Eb-G.
+**C minor segment (101–120):** melodic minor scale C4 D4 D#4 F4 G4 A4 B4 C5, tonic triad C-D#-G.
+
+*(Note spelling uses sharps throughout — e.g. `D#4` rather than `Eb4` — since the implementation's note-naming helper always emits sharp spellings regardless of the classical convention for a given key. Enharmonically identical either way.)*
 
 *(Implementation should generate these programmatically from a scale-interval table plus a root note, rather than hardcoding each segment, to keep the code maintainable.)*
 
@@ -165,7 +167,7 @@ This pattern (8 scale notes + 1 chord + 1 rest = 10 seconds, twice per segment) 
 ```js
 const SCALE_INTERVALS = {
   major: [0, 2, 4, 5, 7, 9, 11, 12],
-  minor: [0, 2, 3, 5, 7, 8, 10, 12], // natural minor
+  minor: [0, 2, 3, 5, 7, 9, 11, 12], // melodic minor, ascending form (raised 6th & 7th); reused as-is (reversed) for the descending half, not lowered back to natural minor
 };
 
 const SEGMENTS = [

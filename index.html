@@ -296,7 +296,10 @@ function transpose(root, semitones) {
 
 const SCALE_INTERVALS = {
   major: [0, 2, 4, 5, 7, 9, 11, 12],
-  minor: [0, 2, 3, 5, 7, 8, 10, 12], // natural minor
+  // Melodic minor, ascending form (raised 6th & 7th vs. natural minor).
+  // The same 8-note array is reused, reversed, for the "descending" half of
+  // each segment — i.e. no lowering back to natural minor on the way down.
+  minor: [0, 2, 3, 5, 7, 9, 11, 12],
 };
 
 // Six 20-second segments per the design doc's 120s master loop.
