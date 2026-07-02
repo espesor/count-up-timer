@@ -20,6 +20,7 @@ Notes are played using real **piano sample playback** (not synthesized oscillato
 ```
 
 - **Display**: large monospace number. Shows `5,4,3,2,1,0` during prep, then `1,2,3,4…` while counting up.
+- **Tick indicator**: a small pendulum-style arm beneath the number swings fully from one side to the other over each second, landing at an extreme exactly when the number changes — a visual metronome beat, phase-locked to the same clock as the audio (see §4). It freezes in place on Pause and resets to center on Stop.
 - **Start**: begins a fresh run from `PREP` if timer is idle/stopped; **resumes** from the current value if paused.
 - **Pause**: freezes the display and silences audio at the current second; state is retained.
 - **Stop**: halts everything, cancels any scheduled audio, and resets display to a blank/`00` idle state.
@@ -58,6 +59,7 @@ COUNTING_UP --600s count-up elapsed, no stop--> auto-stop --> IDLE
 - On Pause, store `elapsedSoFar = audioContext.currentTime - startTime`, suspend the `AudioContext` (or just stop scheduling and cancel pending oscillators), and stop the RAF loop.
 - On Stop, cancel all scheduled/playing oscillators, reset `elapsedSoFar = 0`, and return to `IDLE`.
 - **10-minute auto-stop**: on each display update (or scheduler tick) while `COUNTING_UP`, check `elapsedSoFar >= 600`; if so, trigger the same cleanup as a Stop click (cancel scheduled notes, reset `elapsedSoFar = 0`, transition to `IDLE`). Simpler alternative: schedule a single `setTimeout`/timer for 600s at the moment count-up begins, and clear/reschedule it appropriately on Pause/Resume so it reflects only running time.
+- **Any other per-second visual (e.g. a ticking indicator)** must be driven from this same `audioContext.currentTime`-derived elapsed value on each animation frame, not from an independent CSS animation or its own timer. A CSS `@keyframes` loop started on a button click runs on its own clock and drifts out of phase with the actual seconds almost immediately — it looks like a tick but isn't locked to one. Compute the fractional progress through the current second (`elapsed - Math.floor(elapsed)`) and set the visual's state (e.g. rotation) directly from that fraction each frame, alternating direction based on whether the current second index is even/odd, so it reaches its extreme exactly when the displayed number changes.
 
 ## 5. Audio Design
 

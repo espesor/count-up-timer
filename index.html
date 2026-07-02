@@ -143,7 +143,9 @@
     min-height: 16px;
   }
 
-  /* pendulum, the signature element: a brass arm ticking each second */
+  /* pendulum, the signature element: a brass arm ticking each second.
+     Rotation is driven from JS (in sync with audioContext.currentTime),
+     not a CSS animation, so it stays phase-locked to the actual seconds. */
   .pendulum-track {
     position: absolute;
     bottom: 10px;
@@ -161,8 +163,7 @@
     background: linear-gradient(180deg, var(--brass), var(--brass-dim));
     border-radius: 2px;
     transform-origin: bottom center;
-    animation: swing 2s ease-in-out infinite;
-    animation-play-state: paused;
+    transform: rotate(0deg);
   }
   .pendulum-arm::after {
     content: "";
@@ -173,13 +174,6 @@
     height: 8px;
     border-radius: 50%;
     background: var(--brass-bright);
-  }
-  .pendulum-arm.running { animation-play-state: running; }
-
-  @keyframes swing {
-    0%   { transform: rotate(-18deg); }
-    50%  { transform: rotate(18deg); }
-    100% { transform: rotate(-18deg); }
   }
 
   .controls {
@@ -243,7 +237,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .pendulum-arm { animation: none !important; }
     button { transition: none; }
   }
 
@@ -421,9 +414,23 @@ function segmentLabelFor(countUpSecond) {
 
 /* ---------- Display + scheduling loop ---------- */
 
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PENDULUM_MAX_DEG = 18;
+
+function updatePendulum(elapsed, idx) {
+  if (prefersReducedMotion) return; // leave it at rest, no motion
+  const frac = elapsed - idx; // 0..1 progress through the current second
+  const swingingToRight = idx % 2 === 0;
+  const angle = swingingToRight
+    ? -PENDULUM_MAX_DEG + PENDULUM_MAX_DEG * 2 * frac
+    : PENDULUM_MAX_DEG - PENDULUM_MAX_DEG * 2 * frac;
+  pendulumEl.style.transform = `rotate(${angle}deg)`;
+}
+
 function updateDisplay(now) {
   const elapsed = Math.max(0, now - sessionStart);
   const idx = Math.floor(elapsed);
+  updatePendulum(elapsed, idx);
 
   if (idx <= 5) {
     digitsEl.textContent = String(5 - idx);
@@ -548,7 +555,6 @@ async function handleStart() {
       sessionStart = audioContext.currentTime;
       nextIndex = 0;
       state = 'ACTIVE';
-      pendulumEl.classList.add('running');
       setButtons({ start: false, pause: true, stop: true });
       setStatus('Get ready…');
       acquireWakeLock();
@@ -556,7 +562,6 @@ async function handleStart() {
     } else if (state === 'PAUSED') {
       await audioContext.resume();
       state = 'ACTIVE';
-      pendulumEl.classList.add('running');
       setButtons({ start: false, pause: true, stop: true });
       setStatus('Resumed.');
       acquireWakeLock();
@@ -573,7 +578,8 @@ async function handlePause() {
   if (state !== 'ACTIVE') return;
   await audioContext.suspend();
   state = 'PAUSED';
-  pendulumEl.classList.remove('running');
+  // No transform reset here — the pendulum should freeze in place, same as the digits,
+  // not snap to center. Cancelling the RAF loop below naturally freezes it.
   if (rafId) cancelAnimationFrame(rafId);
   releaseWakeLock();
   setButtons({ start: true, pause: false, stop: true });
@@ -596,7 +602,7 @@ async function resetToIdle(statusText) {
   sessionStart = 0;
   nextIndex = 0;
   state = 'IDLE';
-  pendulumEl.classList.remove('running');
+  pendulumEl.style.transform = 'rotate(0deg)';
   digitsEl.textContent = '00';
   digitsEl.classList.remove('prep');
   phaseLabelEl.textContent = 'Ready';

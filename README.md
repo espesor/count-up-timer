@@ -20,7 +20,7 @@ python3 -m http.server 8000
 
 then visit `http://localhost:8000`.
 
-Piano samples are loaded on first Start click (via [`smplr`](https://github.com/danigb/smplr), CDN-hosted, no local assets needed) — an internet connection is required the first time.
+Piano samples start loading as soon as the page opens (via [`smplr`](https://github.com/danigb/smplr), CDN-hosted, no local assets needed), restricted to just the ~16 notes the piece actually uses — so loading is usually done, or nearly done, by the time you tap Start. An internet connection is required the first time.
 
 ## Known limitation: mobile screen lock
 
