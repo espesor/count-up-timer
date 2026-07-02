@@ -136,7 +136,7 @@ After second 120, the loop repeats from segment 1 (C major).
 | 19 | Root-position triad (lower 3 notes of the 4-note chord, e.g. C major: C4 E4 G4) |
 | 20 | Rest |
 
-This pattern (8 scale notes + 1 chord + 1 rest = 10 seconds, twice per segment) applies to every scale in the table above — major scales use the major-scale/major-triad pattern; the three minor segments (61–120) use the **melodic minor scale, ascending form** (natural minor with a raised 6th and 7th degree) and its minor triad, in the same up/inversion/rest, down/root-triad/rest shape. Unlike the classical convention of lowering the 6th/7th back to natural minor when descending, this app reuses the same raised (ascending-form) scale for the descending half too — i.e. simply the ascending 8 notes in reverse, consistent with how the major segments already work.
+This pattern (8 scale notes + 1 chord + 1 rest = 10 seconds, twice per segment) applies to every scale in the table above — major scales use the major-scale/major-triad pattern (identical ascending and descending); the three minor segments (61–120) use **melodic minor**: the ascending phrase (offsets 1–8) uses the ascending form (natural minor with a raised 6th and 7th degree), while the descending phrase (offsets 11–18) reverts to **natural minor** — the classical melodic-minor convention, where the raised 6th/7th only apply going up. The inversion chord (offset 9) and root chord (offset 19) are unaffected either way, since they're built from the root/3rd/5th, which don't differ between the two forms.
 
 ### 5.3 Example note tables for reference
 
@@ -152,22 +152,24 @@ This pattern (8 scale notes + 1 chord + 1 rest = 10 seconds, twice per segment) 
 
 **E major segment (41–60):** scale E4 F#4 G#4 A4 B4 C#5 D#5 E5, tonic triad E-G#-B.
 
-**E minor segment (61–80):** melodic minor scale (ascending form) E4 F#4 G4 A4 B4 C#5 D#5 E5, tonic triad E-G-B.
+**E minor segment (61–80):** up-scale (melodic minor, offsets 1–8) E4 F#4 G4 A4 B4 C#5 D#5 E5, tonic triad E-G-B (inversion: G4 B4 E5; root: E4 G4 B4); down-scale (natural minor, offsets 11–18) E4 F#4 G4 A4 B4 C5 D5 E5.
 
-**D minor segment (81–100):** melodic minor scale D4 E4 F4 G4 A4 B4 C#5 D5, tonic triad D-F-A.
+**D minor segment (81–100):** up-scale D4 E4 F4 G4 A4 B4 C#5 D5, tonic triad D-F-A (inversion: F4 A4 D5; root: D4 F4 A4); down-scale (natural minor) D4 E4 F4 G4 A4 A#4(Bb4) C5 D5.
 
-**C minor segment (101–120):** melodic minor scale C4 D4 D#4 F4 G4 A4 B4 C5, tonic triad C-D#-G.
+**C minor segment (101–120):** up-scale C4 D4 D#4 F4 G4 A4 B4 C5, tonic triad C-D#-G (inversion: D#4 G4 C5; root: C4 D#4 G4); down-scale (natural minor) C4 D4 D#4 F4 G4 G#4(Ab4) A#4(Bb4) C5.
 
-*(Note spelling uses sharps throughout — e.g. `D#4` rather than `Eb4` — since the implementation's note-naming helper always emits sharp spellings regardless of the classical convention for a given key. Enharmonically identical either way.)*
+*(Note spelling uses sharps throughout in the actual app — e.g. `A#4` rather than `Bb4` — since the implementation's note-naming helper always emits sharp spellings regardless of the classical convention for a given key. Flats are shown parenthetically above for readability. Enharmonically identical either way. The down-scale is listed in ascending order for readability, same as the up-scale — it's played in reverse, same as the major-key examples above.)*
 
 *(Implementation should generate these programmatically from a scale-interval table plus a root note, rather than hardcoding each segment, to keep the code maintainable.)*
 
 ## 6. Data Model (suggested)
 
 ```js
+// Major: identical ascending/descending. Minor: melodic minor ascending
+// (raised 6th & 7th), natural minor descending (classical convention).
 const SCALE_INTERVALS = {
-  major: [0, 2, 4, 5, 7, 9, 11, 12],
-  minor: [0, 2, 3, 5, 7, 9, 11, 12], // melodic minor, ascending form (raised 6th & 7th); reused as-is (reversed) for the descending half, not lowered back to natural minor
+  major: { asc: [0, 2, 4, 5, 7, 9, 11, 12], desc: [0, 2, 4, 5, 7, 9, 11, 12] },
+  minor: { asc: [0, 2, 3, 5, 7, 9, 11, 12], desc: [0, 2, 3, 5, 7, 8, 10, 12] },
 };
 
 const SEGMENTS = [
@@ -180,9 +182,10 @@ const SEGMENTS = [
 ];
 // segment index = Math.floor(((countUpSecond - 1) % 120) / 20)
 // offset within segment = ((countUpSecond - 1) % 20) + 1
+// offsets 1-8 read from scale.asc; offsets 11-18 read from scale.desc (reversed)
 ```
 
-Given `countUpSecond`, derive: which of the 6 segments (via `% 120`), which half (first 10 vs second 10), and the offset within that half — then look up the note name(s) to play. Note names are generated as strings like `"C4"` / `"F#4"` from the interval table + root, which is exactly the format `piano.start({ note })` expects — no frequency conversion needed since the sample player handles note-name-to-sample mapping internally.
+Given `countUpSecond`, derive: which of the 6 segments (via `% 120`), which half (first 10 vs second 10), and the offset within that half — then look up the note name(s) to play, pulling from `scale.asc` for the up-phrase/inversion-chord and `scale.desc` for the down-phrase/root-chord. Note names are generated as strings like `"C4"` / `"F#4"` from the interval table + root, which is exactly the format `piano.start({ note })` expects — no frequency conversion needed since the sample player handles note-name-to-sample mapping internally.
 
 ## 7. Edge Cases & Behaviors to Confirm
 

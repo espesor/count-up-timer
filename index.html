@@ -294,12 +294,18 @@ function transpose(root, semitones) {
   return midiToNote(noteToMidi(root) + semitones);
 }
 
+// Major: identical ascending/descending. Minor: melodic minor ascending
+// (raised 6th & 7th) but natural minor descending (classical convention —
+// the raised notes only apply on the way up).
 const SCALE_INTERVALS = {
-  major: [0, 2, 4, 5, 7, 9, 11, 12],
-  // Melodic minor, ascending form (raised 6th & 7th vs. natural minor).
-  // The same 8-note array is reused, reversed, for the "descending" half of
-  // each segment — i.e. no lowering back to natural minor on the way down.
-  minor: [0, 2, 3, 5, 7, 9, 11, 12],
+  major: {
+    asc: [0, 2, 4, 5, 7, 9, 11, 12],
+    desc: [0, 2, 4, 5, 7, 9, 11, 12],
+  },
+  minor: {
+    asc: [0, 2, 3, 5, 7, 9, 11, 12],  // melodic minor ascending
+    desc: [0, 2, 3, 5, 7, 8, 10, 12], // natural minor descending
+  },
 };
 
 // Six 20-second segments per the design doc's 120s master loop.
@@ -316,14 +322,18 @@ const scaleCache = new Map();
 function getScale(root, type) {
   const key = root + type;
   if (!scaleCache.has(key)) {
-    scaleCache.set(key, SCALE_INTERVALS[type].map((i) => transpose(root, i)));
+    const intervals = SCALE_INTERVALS[type];
+    scaleCache.set(key, {
+      asc: intervals.asc.map((i) => transpose(root, i)),
+      desc: intervals.desc.map((i) => transpose(root, i)),
+    });
   }
   return scaleCache.get(key);
 }
 
 const PREP_NOTES = ['C5', 'G4', 'E4', 'C4'];
 
-// The full song only ever touches ~16 distinct pitches (roughly C4-E5).
+// The full song only ever touches ~16-18 distinct pitches (roughly C4-E5).
 // Loading just these — instead of smplr's default full 88-key, multi-velocity
 // sample set — cuts the first-load download drastically, which matters a lot
 // on mobile networks.
@@ -331,7 +341,9 @@ function collectRequiredMidiNotes() {
   const midis = new Set();
   PREP_NOTES.forEach((n) => midis.add(noteToMidi(n)));
   SEGMENTS.forEach((seg) => {
-    getScale(seg.root, seg.type).forEach((n) => midis.add(noteToMidi(n)));
+    const scale = getScale(seg.root, seg.type);
+    scale.asc.forEach((n) => midis.add(noteToMidi(n)));
+    scale.desc.forEach((n) => midis.add(noteToMidi(n)));
   });
   return Array.from(midis).sort((a, b) => a - b);
 }
@@ -396,15 +408,15 @@ function playEvent(n, time) {
   const scale = getScale(seg.root, seg.type);
 
   if (offset <= 8) {
-    playNote(scale[offset - 1], time);
+    playNote(scale.asc[offset - 1], time);
   } else if (offset === 9) {
-    playChord([scale[2], scale[4], scale[7]], time); // first inversion
+    playChord([scale.asc[2], scale.asc[4], scale.asc[7]], time); // first inversion, off the ascending scale just played
   } else if (offset === 10) {
     // rest
   } else if (offset <= 18) {
-    playNote(scale[18 - offset], time);
+    playNote(scale.desc[18 - offset], time);
   } else if (offset === 19) {
-    playChord([scale[0], scale[2], scale[4]], time); // root position
+    playChord([scale.desc[0], scale.desc[2], scale.desc[4]], time); // root position, off the descending scale just played
   }
   // offset === 20 -> rest
 }
