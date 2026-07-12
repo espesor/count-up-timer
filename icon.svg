@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background: wood-dark -->
+  <rect width="512" height="512" rx="80" fill="#1c140d"/>
+
+  <!-- Clock face outer ring: wood-panel-a -->
+  <circle cx="256" cy="256" r="218" fill="#3c2a1c"/>
+  <!-- Clock face inner: wood-panel-b -->
+  <circle cx="256" cy="256" r="204" fill="#291c12"/>
+  <!-- Brass bezel ring -->
+  <circle cx="256" cy="256" r="204" fill="none" stroke="#c9a24b" stroke-width="4"/>
+
+  <!-- Hour tick marks: brass -->
+  <g stroke="#c9a24b" stroke-width="5" stroke-linecap="round">
+    <!-- 12 --> <line x1="256" y1="64"  x2="256" y2="90"/>
+    <!-- 1  --> <line x1="364" y1="95"  x2="351" y2="117"/>
+    <!-- 2  --> <line x1="433" y1="164" x2="411" y2="177"/>
+    <!-- 3  --> <line x1="460" y1="256" x2="434" y2="256"/>
+    <!-- 4  --> <line x1="433" y1="348" x2="411" y2="335"/>
+    <!-- 5  --> <line x1="364" y1="417" x2="351" y2="395"/>
+    <!-- 6  --> <line x1="256" y1="448" x2="256" y2="422"/>
+    <!-- 7  --> <line x1="148" y1="417" x2="161" y2="395"/>
+    <!-- 8  --> <line x1="79"  y1="348" x2="101" y2="335"/>
+    <!-- 9  --> <line x1="52"  y1="256" x2="78"  y2="256"/>
+    <!-- 10 --> <line x1="79"  y1="164" x2="101" y2="177"/>
+    <!-- 11 --> <line x1="148" y1="95"  x2="161" y2="117"/>
+  </g>
+
+  <!-- Clock hands: ivory -->
+  <!-- Minute hand pointing ~12 -->
+  <line x1="256" y1="256" x2="256" y2="100" stroke="#f1e7d6" stroke-width="7" stroke-linecap="round"/>
+  <!-- Hour hand pointing ~10 -->
+  <line x1="256" y1="256" x2="172" y2="182" stroke="#f1e7d6" stroke-width="9" stroke-linecap="round"/>
+  <!-- Brass center cap -->
+  <circle cx="256" cy="256" r="10" fill="#c9a24b"/>
+
+  <!-- Treble clef: brass-bright, centered -->
+  <text
+    x="256" y="320"
+    text-anchor="middle"
+    font-family="'Times New Roman', Georgia, serif"
+    font-size="190"
+    fill="#e0bc6c"
+    opacity="0.92"
+  >𝄞</text>
+</svg>
